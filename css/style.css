@@ -1,0 +1,300 @@
+/* ============================================================
+   ITS Collective — launch site
+   Ported from the design handoff (source of truth: Share export)
+   Ink #2c5563 · Instrument Serif (display) + Space Mono (UI)
+   ============================================================ */
+
+:root{
+  --ink: #2c5563;
+  --field: #a1cad8;   /* page background  (bgTone.field) */
+  --panel: #bfe0e9;   /* canvas interior  (bgTone.panel) */
+  --grain: 0.38;      /* grainAmount */
+  --ease: cubic-bezier(.7, 0, .15, 1);
+  --stripe: repeating-linear-gradient(135deg, rgba(44,85,99,0.1) 0 9px, rgba(44,85,99,0) 9px 18px);
+}
+
+*{ box-sizing: border-box; }
+html, body{ margin:0; padding:0; height:100%; background: var(--field); }
+[hidden]{ display: none !important; }
+
+/* ---- motion keyframes ---- */
+@keyframes itsSpinY   { to { transform: rotateY(360deg); } }
+@keyframes itsFloatA  { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-13px) } }
+@keyframes itsFloatB  { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(15px) } }
+@keyframes itsFloatC  { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-9px) } }
+@keyframes itsBreathe { 0%,100%{ opacity:.5 } 50%{ opacity:.9 } }
+@keyframes itsShimmer { 0%,100%{ opacity:.12 } 50%{ opacity:.4 } }
+
+/* ============================================================ APP / STAGE */
+.app{
+  position: fixed; inset: 0; overflow: hidden;
+  background: var(--field);
+  font-family: 'Space Mono', monospace; color: var(--ink);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .6s ease;
+}
+.stage{ position: relative; width: 86vmin; height: 86vmin; }
+
+/* ============================================================ CANVAS */
+.canvas{
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  /* Containment: the canvas animates its real width/height on expand. Without
+     this the browser re-lays-out & repaints the whole page every frame of the
+     .85s grow, dropping frames (measured 66–116ms stalls). `contain` scopes
+     that work to the canvas subtree — no visual change. */
+  contain: layout paint;
+  transition: width .85s var(--ease), height .85s var(--ease), border-radius .85s var(--ease);
+  /* width / height / border-radius / z-index set by JS */
+}
+.panel{
+  position: absolute; inset: 0; overflow: hidden;
+  contain: layout paint;
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px rgba(44,85,99,0.16), inset 0 0 60px rgba(44,85,99,0.14);
+}
+.scroll{ position: absolute; inset: 0; overflow-x: hidden; overflow-y: hidden; }
+#app.expanded .scroll{ overflow-y: auto; }
+
+.content{
+  position: relative; min-height: 100%;
+  --accent: oklch(0.57 0.15 30);
+  transition: opacity .28s ease, transform .28s ease;
+  /* opacity / transform (fade) set by JS */
+}
+
+/* ============================================================ SECTIONS */
+.section--fill{ position: absolute; inset: 0; }
+.section-wrap{
+  display: flex; flex-direction: column; gap: 2.6vmin;
+  padding: 8% 8% 11%; min-height: 100%;
+}
+#app.expanded .section-wrap{
+  padding: 9vmin 8vw 16vmin; gap: 3.4vmin;
+  max-width: 1180px; margin: 0 auto; width: 100%;
+}
+
+.col{ display: flex; flex-direction: column; }
+.on-expand{ display: none; }
+#app.expanded .on-expand{ display: flex; }
+
+/* ---- home ---- */
+.home{ padding: 5% 6%; display: flex; flex-direction: column; justify-content: space-between; }
+.home-kicker{ font-size: 0.72rem; letter-spacing: 0.32em; color: rgba(44,85,99,0.55); }
+.home-center{ display: flex; flex-direction: column; align-items: center; gap: 1.1em; }
+.home-prompt{ font-size: 0.66rem; letter-spacing: 0.42em; color: rgba(44,85,99,0.45); }
+
+/* ---- section header ---- */
+.sec-head{ color: var(--accent); display: flex; flex-direction: column; gap: 0.8vmin; }
+.sec-index{ font-size: 0.72rem; letter-spacing: 0.34em; opacity: 0.55; }
+.sec-line{
+  font-size: 0.82rem; letter-spacing: 0.06em; color: rgba(44,85,99,0.72);
+  max-width: 36ch; margin-top: 1.2vmin;
+}
+.section[data-section="about"] .sec-line,
+.section[data-section="pitch"] .sec-line{ max-width: 38ch; }
+
+.accent{ color: var(--accent); }
+
+/* ---- placeholder image slots ---- */
+.ph{
+  background-image: var(--stripe); background-color: #b0d6e1;
+  border: 1px solid rgba(44,85,99,0.2);
+  display: flex; align-items: center; justify-content: center;
+}
+.ph--hero{ height: 26vmin; min-height: 150px; }
+#app.expanded .ph--hero{ height: 46vmin; }
+.ph--tile{ height: 26vmin; min-height: 170px; }
+.ph--portrait{ height: 62vmin; min-height: 300px; }
+.ph-label{ font-size: 0.66rem; letter-spacing: 0.24em; color: rgba(44,85,99,0.55); }
+
+/* ---- shared bits ---- */
+.divider{ height: 1px; background: rgba(44,85,99,0.18); }
+.label{ font-size: 0.66rem; letter-spacing: 0.3em; color: rgba(44,85,99,0.5); }
+
+.meta-row{ display: flex; flex-wrap: wrap; gap: 5vmin; }
+.meta{ display: flex; flex-direction: column; gap: 0.5em; }
+.meta-label{ font-size: 0.62rem; letter-spacing: 0.3em; color: rgba(44,85,99,0.5); }
+.meta-val{ font-family: 'Instrument Serif', serif; font-size: clamp(22px, 3.6vmin, 40px); }
+.section[data-section="pitch"] .meta-val{ font-size: clamp(22px, 3.6vmin, 44px); }
+
+.cta{
+  display: inline-flex; align-items: center; gap: 0.6em;
+  padding: 1em 1.8em; font-family: 'Space Mono', monospace;
+  font-size: 0.64rem; letter-spacing: 0.28em; cursor: pointer; border: none;
+}
+.cta--solid{ background: var(--accent); color: #f2f8fa; }
+.cta--outline{ background: transparent; color: var(--accent); border: 1px solid var(--accent); align-self: flex-start; }
+
+/* ============================================================ 01 · VISUAL ART */
+.grid{ display: grid; }
+.grid--works{ grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 3vmin; }
+.work{ display: flex; flex-direction: column; gap: 1vmin; }
+.work-cap{
+  display: flex; justify-content: space-between;
+  font-size: 0.66rem; letter-spacing: 0.12em; color: rgba(44,85,99,0.62);
+}
+
+/* ============================================================ 02 · FASHION */
+.look{ display: flex; gap: 4vmin; flex-wrap: wrap; align-items: flex-start; }
+.look--rev{ flex-wrap: wrap-reverse; }
+.look-img{ flex: 1.3; min-width: 260px; }
+.look-text{
+  flex: 1; min-width: 220px; display: flex; flex-direction: column;
+  gap: 1.4vmin; padding-top: 2vmin;
+}
+.look-text--right{ align-items: flex-end; text-align: right; }
+.kicker{ font-size: 0.72rem; letter-spacing: 0.3em; }
+.garment{ font-family: 'Instrument Serif', serif; font-size: clamp(24px, 4.4vmin, 52px); line-height: 1; }
+.look-desc{ font-size: 0.78rem; letter-spacing: 0.06em; color: rgba(44,85,99,0.66); max-width: 34ch; }
+.chips{ display: flex; gap: 0.6em; margin-top: 0.8vmin; flex-wrap: wrap; }
+.chips--right{ justify-content: flex-end; }
+.chip{
+  font-size: 0.6rem; letter-spacing: 0.2em; color: rgba(44,85,99,0.6);
+  border: 1px solid rgba(44,85,99,0.22); padding: 0.5em 0.8em;
+}
+.grid--support{ grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2.4vmin; }
+.drop-row{ display: flex; flex-wrap: wrap; gap: 3vmin; align-items: flex-end; justify-content: space-between; }
+.waitlist{ display: flex; gap: 0.8em; align-items: center; }
+.wait-input{
+  background: rgba(255,255,255,0.35); border: 1px solid rgba(44,85,99,0.28);
+  padding: 1em 1.2em; font-family: 'Space Mono', monospace; font-size: 0.66rem;
+  letter-spacing: 0.12em; color: #2c5563; outline: none; min-width: 180px;
+  transition: border-color .2s ease;
+}
+.wait-input:focus{ border-color: var(--accent); }
+.waitlist.is-invalid .wait-input{ border-color: oklch(0.57 0.15 30); }
+.waitlist-done{ font-size: 0.72rem; letter-spacing: 0.2em; color: var(--accent); }
+
+/* ============================================================ 03 · MUSIC — THE CAVE */
+.cave{ overflow: hidden; }
+.cave-depth{
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(70% 60% at 50% 52%, rgba(44,85,99,0.06) 0%, rgba(44,85,99,0) 68%);
+}
+.cave-light{
+  position: absolute; top: -6%; left: 50%; width: 54%; height: 60%;
+  transform: translateX(-50%); pointer-events: none;
+  background: radial-gradient(56% 56% at 50% 26%, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 70%);
+  animation: itsShimmer 10s ease-in-out infinite;
+}
+.cave-signals{ position: absolute; inset: 0; }
+#app.expanded .cave-signals{ display: block; }
+.signal-float{ position: absolute; }
+.signal{
+  display: flex; flex-direction: column; gap: 0.6em; cursor: pointer;
+  opacity: var(--op, 1);
+  transition: opacity .6s ease, transform .6s ease;
+}
+.signal:hover{ opacity: 1; transform: translateY(-4px); }
+.sig-bar{ height: 7px; background: repeating-linear-gradient(90deg, rgba(44,85,99,0.4) 0 2px, transparent 2px 5px); }
+.sig-name{ font-size: clamp(11px, 1.5vmin, 15px); letter-spacing: 0.16em; color: rgba(44,85,99,0.82); }
+.sig-meta{ font-size: 0.54rem; letter-spacing: 0.26em; color: rgba(44,85,99,0.42); }
+.cave-caption{
+  position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%);
+  font-size: 0.58rem; letter-spacing: 0.5em; color: rgba(44,85,99,0.4);
+  white-space: nowrap; animation: itsBreathe 8s ease-in-out infinite;
+}
+.cave-glimpse{ position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.glimpse-float{ animation: itsFloatC 12s ease-in-out infinite; }
+.signal--lead{ gap: 0.9em; transition: transform .6s ease; }
+.sig-head{ display: flex; align-items: center; gap: 0.85em; }
+.play-glyph{
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 2.7em; height: 2.7em; border-radius: 50%;
+  border: 1px solid rgba(44,85,99,0.7); color: rgba(44,85,99,0.92);
+  font-size: 0.72rem; animation: itsBreathe 5s ease-in-out infinite;
+}
+.sig-title{ font-size: clamp(15px, 2.3vmin, 28px); letter-spacing: 0.2em; color: rgba(44,85,99,0.95); }
+.sig-bar--lead{ width: 130px; height: 8px; margin-left: 0.2em; background: repeating-linear-gradient(90deg, rgba(44,85,99,0.5) 0 2px, transparent 2px 5px); }
+.sig-lead-meta{ font-size: 0.56rem; letter-spacing: 0.28em; color: rgba(44,85,99,0.5); margin-left: 0.2em; }
+
+/* ============================================================ 04 · ABOUT */
+.grid--members{ grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 3vmin; }
+.member{ display: flex; flex-direction: column; align-items: center; gap: 1em; text-align: center; }
+.member-dot{ width: 5vmin; height: 5vmin; min-width: 44px; min-height: 44px; border-radius: 50%; }
+.member-tag{ font-size: 0.66rem; letter-spacing: 0.16em; color: rgba(44,85,99,0.7); }
+.about-body{ display: flex; flex-direction: column; gap: 1em; max-width: 56ch; font-size: 0.82rem; line-height: 1.7; color: rgba(44,85,99,0.78); }
+.about-body p{ margin: 0; }
+
+/* ============================================================ 05 · PITCH */
+.grid--offer{ grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2.4vmin; }
+.offer{ display: flex; flex-direction: column; gap: 0.8em; padding: 2.2vmin; border: 1px solid rgba(44,85,99,0.18); }
+.offer-dot{ width: 1.4em; height: 1.4em; border-radius: 50%; }
+.offer-title{ font-family: 'Instrument Serif', serif; font-size: 1.5rem; }
+.offer-desc{ font-size: 0.72rem; color: rgba(44,85,99,0.66); line-height: 1.6; }
+
+/* ============================================================ CHROME */
+.close-ctrl{ position: absolute; top: 5%; left: 6%; font-size: 0.7rem; letter-spacing: 0.28em; color: rgba(44,85,99,0.6); cursor: pointer; z-index: 8; }
+.scroll-hint{ position: absolute; bottom: 6%; right: 6%; font-size: 0.64rem; letter-spacing: 0.26em; color: rgba(44,85,99,0.5); z-index: 8; cursor: pointer; }
+
+/* ---- arrow / logo mark ---- */
+.arrow{
+  position: absolute; left: 50%; top: 50%;
+  opacity: 0.95; cursor: pointer; line-height: 0; perspective: 700px;
+  transition: width .85s var(--ease), transform .85s var(--ease);
+  /* width / transform / z-index set by JS */
+}
+.arrow-spin{ height: 100%; transform-style: preserve-3d; animation: itsSpinY 7s linear infinite; }
+.arrow img{ width: 100%; height: auto; display: block; }
+
+/* ---- figures ---- */
+.fig{
+  position: absolute; left: 50%; top: 50%;
+  border: none; background: transparent; padding: 0; cursor: pointer;
+  display: flex; align-items: flex-end; justify-content: center;
+  transition: transform .75s var(--ease), opacity .5s ease;
+  -webkit-tap-highlight-color: transparent;
+  /* width / height / transform / opacity / color / z-index set by JS */
+}
+.fig img{ height: 100%; width: 100%; object-fit: contain; object-position: bottom; display: block; }
+.fig-svg{ width: auto; height: 100%; display: block; }
+
+.footer-mark{ position: absolute; bottom: 2.4vmin; left: 0; right: 0; text-align: center; font-size: 0.6rem; letter-spacing: 0.3em; color: rgba(44,85,99,0.4); z-index: 2; }
+
+/* ---- narration bubble ---- */
+.bubble{
+  position: fixed; bottom: 5.5vmin; right: 3vmin;
+  max-width: min(70vw, 340px); padding: 1em 1.35em;
+  background: rgba(247,251,252,0.72); backdrop-filter: blur(3px);
+  border: 1px solid rgba(44,85,99,0.9); color: rgba(44,85,99,0.9);
+  font-family: 'Space Mono', monospace; font-size: clamp(11px, 0.78rem, 14px);
+  letter-spacing: 0.04em; line-height: 1.5; z-index: 40; pointer-events: none;
+  border-radius: 14px 14px 2px 14px; text-align: right;
+  transition: color .5s ease, border-color .5s ease;
+}
+
+/* ---- grain overlay ---- */
+.grain{
+  position: absolute; inset: 0; pointer-events: none; z-index: 60;
+  mix-blend-mode: multiply; opacity: var(--grain);
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='160'%20height='160'%3E%3Cfilter%20id='n'%3E%3CfeTurbulence%20type='fractalNoise'%20baseFrequency='0.9'%20numOctaves='2'%20stitchTiles='stitch'/%3E%3CfeColorMatrix%20type='saturate'%20values='0'/%3E%3C/filter%3E%3Crect%20width='100%25'%20height='100%25'%20filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 170px 170px;
+}
+
+/* ---- background-tone switcher (review aid) ---- */
+.swatch-tray{
+  position: fixed; right: 2.4vmin; bottom: 2.4vmin; z-index: 100;
+  display: flex; gap: 0.7em; align-items: center; padding: 0.7em;
+  background: rgba(255,255,255,0.55); backdrop-filter: blur(6px);
+  border-radius: 999px; box-shadow: 0 2px 14px rgba(44,85,99,0.18);
+}
+.swatch{ width: 2.1em; height: 2.1em; border-radius: 50%; cursor: pointer; box-shadow: 0 0 0 1px rgba(44,85,99,0.25); }
+.swatch.is-active{ box-shadow: 0 0 0 2px rgba(44,85,99,0.75); }
+.swatch[data-tone="glacier"]{ background: #bfe0e9; }
+.swatch[data-tone="mist"]{ background: #dbe7e9; }
+.swatch[data-tone="slate"]{ background: #b3d0de; }
+.swatch[data-tone="powder"]{ background: #d6e9f0; }
+.swatch[data-tone="azure"]{ background: #b8dced; }
+.swatch-toggle{
+  position: fixed; right: 2.4vmin; bottom: 2.4vmin; z-index: 100;
+  width: 2.3em; height: 2.3em; border-radius: 50%; cursor: pointer;
+  background: rgba(255,255,255,0.55); backdrop-filter: blur(6px);
+  box-shadow: 0 2px 14px rgba(44,85,99,0.18); border: 1px solid rgba(44,85,99,0.25);
+}
+
+/* ---- reduced motion: kill the perpetual arrow spin ---- */
+@media (prefers-reduced-motion: reduce){
+  .arrow-spin{ animation: none; }
+}
