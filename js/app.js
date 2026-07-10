@@ -286,9 +286,12 @@
       el.arrow.style.transform = 'translate(-50%,-50%) translateY(0vmin)';
     } else {
       el.arrow.style.width = expanded ? '13vmin' : '15vmin';
+      // Vertical park distance is keyed to viewport *height* (not vmin): on
+      // landscape vmin==vh so wide viewports are unchanged, but in portrait vmin
+      // would be the narrow width and leave the arrow floating too high.
       el.arrow.style.transform = expanded
-        ? 'translate(-50%,-50%) translateY(47vmin)'
-        : 'translate(-50%,-50%) translateY(34vmin)';
+        ? 'translate(-50%,-50%) translateY(47vh)'
+        : 'translate(-50%,-50%) translateY(34vh)';
     }
     el.arrow.style.zIndex = expanded ? 25 : 6;
     // reduce-motion also honoured via CSS media query; mirror the config flag
