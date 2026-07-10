@@ -249,26 +249,22 @@
       <img src="assets/fig-music.png" alt="" draggable="false">
     </button>
     <button class="fig" data-fig="3" aria-label="Figure 04">
-      <svg viewBox="0 0 60 120" class="fig-svg">
-        <circle cx="30" cy="16" r="10" fill="currentColor"></circle>
-        <path d="M30 26 C24 26 22 34 22 45 L9 110 L30 116 L51 110 L38 45 C38 34 36 26 30 26 Z" fill="currentColor"></path>
-      </svg>
+      <img src="assets/fig-about.png" alt="" draggable="false">
     </button>
     <button class="fig" data-fig="4" aria-label="Figure 05">
-      <svg viewBox="0 0 60 120" class="fig-svg">
-        <circle cx="26" cy="16" r="10" fill="currentColor"></circle>
-        <path d="M26 26 C16 26 14 38 14 65 L17 114 L25 114 L27 76 L31 114 L39 114 L40 65 C40 40 38 26 26 26 Z" fill="currentColor"></path>
-        <rect x="40" y="58" width="12" height="15" rx="1" fill="currentColor"></rect>
-        <rect x="39.5" y="50" width="2" height="18" fill="currentColor"></rect>
-      </svg>
+      <img src="assets/fig-pitch.png" alt="" draggable="false">
     </button>
 
   </div>
 
   <div class="footer-mark">ITS — LAUNCH ██.██ — MMXXVI</div>
 
-  <!-- CHARACTER NARRATION BUBBLE (lore breadcrumbs) -->
-  <div class="bubble" id="bubble"></div>
+  <!-- CHARACTER NARRATION BUBBLE (placeholder copy surface — retractable) -->
+  <button class="bubble" id="bubble" type="button" aria-label="Hide note">
+    <span class="bubble-tag">placeholder copy</span>
+    <span class="bubble-text" id="bubbleText"></span>
+  </button>
+  <button class="bubble-handle" id="bubbleHandle" type="button" hidden aria-label="Show note">···</button>
 
   <div class="grain" id="grain"></div>
 
