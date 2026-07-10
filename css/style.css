@@ -57,6 +57,11 @@ html, body{ margin:0; padding:0; height:100%; background: var(--field); }
 .scroll{ position: absolute; inset: 0; overflow-x: hidden; overflow-y: hidden; }
 #app.expanded .scroll{ overflow-y: auto; }
 
+/* When restoring a remembered tab we swap it in already at its saved size, so
+   suppress the canvas grow + arrow reposition for that one frame — the tab
+   appears instantly rather than replaying the expand. */
+#app.snap .canvas, #app.snap .arrow{ transition: none !important; }
+
 .content{
   position: relative; min-height: 100%;
   --accent: oklch(0.57 0.15 30);
@@ -249,19 +254,37 @@ html, body{ margin:0; padding:0; height:100%; background: var(--field); }
   /* width / height / transform / opacity / color / z-index set by JS */
 }
 .fig img{ height: 100%; width: 100%; object-fit: contain; object-position: bottom; display: block; }
-.fig-svg{ width: auto; height: 100%; display: block; }
 
 .footer-mark{ position: absolute; bottom: 2.4vmin; left: 0; right: 0; text-align: center; font-size: 0.6rem; letter-spacing: 0.3em; color: rgba(44,85,99,0.4); z-index: 2; }
 
-/* ---- narration bubble ---- */
+/* ---- narration bubble (placeholder copy surface, retractable) ---- */
 .bubble{
   position: fixed; bottom: 5.5vmin; right: 3vmin;
-  max-width: min(70vw, 340px); padding: 1em 1.35em;
+  max-width: min(70vw, 340px); padding: 0.85em 1.35em;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 0.55em;
   background: rgba(247,251,252,0.72); backdrop-filter: blur(3px);
-  border: 1px solid rgba(44,85,99,0.9); color: rgba(44,85,99,0.9);
-  font-family: 'Space Mono', monospace; font-size: clamp(11px, 0.78rem, 14px);
-  letter-spacing: 0.04em; line-height: 1.5; z-index: 40; pointer-events: none;
+  border: 1px dashed rgba(44,85,99,0.9); color: rgba(44,85,99,0.9);
+  font-family: 'Space Mono', monospace;
+  letter-spacing: 0.04em; line-height: 1.5; z-index: 40; cursor: pointer;
   border-radius: 14px 14px 2px 14px; text-align: right;
+  transition: color .5s ease, border-color .5s ease;
+  appearance: none; -webkit-tap-highlight-color: transparent;
+}
+.bubble-tag{
+  font-size: 0.5rem; letter-spacing: 0.24em; text-transform: uppercase;
+  opacity: 0.6; padding-bottom: 0.1em; border-bottom: 1px dashed currentColor;
+}
+.bubble-text{ font-size: clamp(11px, 0.78rem, 14px); }
+
+/* retracted state: a small tab that re-opens the note */
+.bubble-handle{
+  position: fixed; bottom: 5.5vmin; right: 3vmin; z-index: 40;
+  padding: 0.35em 0.85em; line-height: 1;
+  background: rgba(247,251,252,0.72); backdrop-filter: blur(3px);
+  border: 1px dashed rgba(44,85,99,0.9); color: rgba(44,85,99,0.9);
+  border-radius: 14px 14px 2px 14px; cursor: pointer;
+  font-family: 'Space Mono', monospace; font-size: 0.95rem; letter-spacing: 0.18em;
+  appearance: none; -webkit-tap-highlight-color: transparent;
   transition: color .5s ease, border-color .5s ease;
 }
 
@@ -274,8 +297,10 @@ html, body{ margin:0; padding:0; height:100%; background: var(--field); }
 }
 
 /* ---- background-tone switcher (review aid) ---- */
+/* Colour switcher lives in the opposite (bottom-left) corner from the
+   narration box, so the box and its retracted handle never collide with it. */
 .swatch-tray{
-  position: fixed; right: 2.4vmin; bottom: 2.4vmin; z-index: 100;
+  position: fixed; left: 2.4vmin; bottom: 2.4vmin; z-index: 100;
   display: flex; gap: 0.7em; align-items: center; padding: 0.7em;
   background: rgba(255,255,255,0.55); backdrop-filter: blur(6px);
   border-radius: 999px; box-shadow: 0 2px 14px rgba(44,85,99,0.18);
@@ -288,7 +313,7 @@ html, body{ margin:0; padding:0; height:100%; background: var(--field); }
 .swatch[data-tone="powder"]{ background: #d6e9f0; }
 .swatch[data-tone="azure"]{ background: #b8dced; }
 .swatch-toggle{
-  position: fixed; right: 2.4vmin; bottom: 2.4vmin; z-index: 100;
+  position: fixed; left: 2.4vmin; bottom: 2.4vmin; z-index: 100;
   width: 2.3em; height: 2.3em; border-radius: 50%; cursor: pointer;
   background: rgba(255,255,255,0.55); backdrop-filter: blur(6px);
   box-shadow: 0 2px 14px rgba(44,85,99,0.18); border: 1px solid rgba(44,85,99,0.25);
