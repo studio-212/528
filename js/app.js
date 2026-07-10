@@ -65,8 +65,16 @@
     vw: null, vh: null, // measured viewport (px)
     bgTone: null,       // user-picked tone (overrides config)
     showSwatches: false,
+    bubbleOpen: true,   // narration box shown vs retracted to its handle
   };
   let fadeTimer = null;
+  let scrollAnim = 0;      // rAF id for the scroll-to-top animation
+  let collapseToken = 0;   // invalidates a pending "scroll then collapse" if superseded
+
+  // Per-tab view memory (session only — a refresh starts blank). Each of the 5
+  // sections remembers whether it was left expanded and where it was scrolled,
+  // so switching away and back restores that tab exactly, like an app's tab bar.
+  const tabView = SECTIONS.map(() => ({ expanded: false, scrollTop: 0 }));
 
   // ---- element refs ----
   const $  = (sel) => document.querySelector(sel);
@@ -79,6 +87,8 @@
     arrow:      $('#arrow'),
     arrowSpin:  $('#arrowSpin'),
     bubble:     $('#bubble'),
+    bubbleText: $('#bubbleText'),
+    bubbleHandle: $('#bubbleHandle'),
     grain:      $('#grain'),
     closeCtrl:  $('#closeCtrl'),
     scrollHint: $('#scrollHint'),
@@ -98,16 +108,69 @@
   }
 
   // ============================================================ actions
-  function selectFig(i) {
-    if (state.active === i) { goHome(); return; }
-    setState({ active: i, fade: true, expanded: false });
-    clearTimeout(fadeTimer);
-    fadeTimer = setTimeout(() => setState({ show: i, fade: false }), 240);
+  // Snapshot the currently-shown tab's live view so we can restore it later.
+  function saveCurrentTab() {
+    if (state.show != null) {
+      tabView[state.show] = { expanded: state.expanded, scrollTop: el.scroll.scrollTop };
+    }
   }
-  function goHome() {
-    setState({ active: null, fade: true, expanded: false });
+
+  function selectFig(i) {
+    if (state.active === i) { activeTap(i); return; }   // same tab → the ladder
+    collapseToken++; cancelAnimationFrame(scrollAnim);  // cancel any pending scroll-collapse
+    saveCurrentTab();                                   // remember the tab we're leaving
+    const v = tabView[i];                               // the tab we're entering
+    setState({ active: i, fade: true });                // fade out at the current size
     clearTimeout(fadeTimer);
-    fadeTimer = setTimeout(() => setState({ show: null, fade: false }), 240);
+    fadeTimer = setTimeout(() => {
+      // Snap-restore: swap in the new tab already at its saved size + scroll
+      // (no grow animation), then let the content cross-fade back in.
+      el.app.classList.add('snap');
+      setState({ show: i, fade: false, expanded: v.expanded });
+      el.scroll.scrollTop = v.expanded ? v.scrollTop : 0;
+      void el.canvas.offsetWidth;                       // flush the snapped layout
+      requestAnimationFrame(() => el.app.classList.remove('snap'));
+    }, 240);
+  }
+
+  // Animate the scroll container to the top, then run `done`. Cancels cleanly if
+  // superseded (e.g. the user switches tabs mid-scroll).
+  function scrollToTopThen(done) {
+    cancelAnimationFrame(scrollAnim);
+    const sc = el.scroll;
+    const from = sc.scrollTop;
+    if (from <= 2 || config.reduceMotion) { sc.scrollTop = 0; done(); return; }
+    const dur = Math.min(520, 180 + from * 0.6);
+    const t0 = performance.now();
+    const ease = (p) => 1 - Math.pow(1 - p, 3);          // easeOutCubic
+    const step = (now) => {
+      const p = Math.min(1, (now - t0) / dur);
+      sc.scrollTop = from * (1 - ease(p));
+      if (p < 1) scrollAnim = requestAnimationFrame(step);
+      else done();
+    };
+    scrollAnim = requestAnimationFrame(step);
+  }
+
+  // Clicking the figure of the tab you're already on — a 2-step ladder. Because
+  // scrolled-to-top is synonymous with zoomed-out, one click while expanded
+  // scrolls to the top and then zooms out, as one continuous motion.
+  function activeTap(i) {
+    if (!state.expanded) { goHome(); return; }
+    const token = ++collapseToken;
+    scrollToTopThen(() => {
+      if (token !== collapseToken) return;               // superseded — bail
+      tabView[i] = { expanded: false, scrollTop: 0 };
+      setState({ expanded: false });                     // zoom out (animated)
+    });
+  }
+
+  function goHome() {
+    collapseToken++; cancelAnimationFrame(scrollAnim);  // cancel any pending scroll-collapse
+    saveCurrentTab();
+    setState({ active: null, fade: true });
+    clearTimeout(fadeTimer);
+    fadeTimer = setTimeout(() => setState({ show: null, fade: false, expanded: false }), 240);
   }
   function arrowClick() {
     if (state.expanded) setState({ expanded: false });
@@ -165,14 +228,28 @@
     const baseW = ready ? Math.min(vw * 0.72, 1120) : 0;
     const baseH = ready ? Math.min(vh * 0.66, 760)  : 0;
     const halfW = baseW / 2, halfH = baseH / 2;
-    const gap   = ready ? Math.min(vw, vh) * 0.038 : 0;
-    const figH  = ready ? Math.min(vw, vh) * 0.07 : 0;
+    const vmin  = ready ? Math.min(vw, vh) : 0;
+    const gap   = ready ? vmin * 0.038 : 0;
+
+    // How narrow the viewport is: 0 on desktop (>=900px), ramping to 1 by ~380px.
+    const narrow = ready ? Math.min(1, Math.max(0, (900 - vw) / 520)) : 0;
+
+    // Top-row figures each get an equal column across a fraction of the viewport
+    // width. That fraction grows as the screen narrows (the side padding scales
+    // down), and each figure fills more of its column — so on mobile the figures
+    // stand taller instead of collapsing. Height is capped so the airy desktop
+    // proportions are preserved, and columns guarantee the row never overlaps or
+    // runs off-screen.
+    const rowFrac = ready ? 0.70 + 0.24 * narrow : 0;   // figure-row width ÷ viewport width
+    const colW    = ready ? (vw * rowFrac) / 5 : 0;     // per-figure column
+    const figH  = ready ? Math.min(colW * 0.68 / 0.72, vh * (0.07 + 0.025 * narrow)) : 0;
     const figW  = figH * 0.72;
 
     // ---- menu positions (px offsets from canvas centre) ----
-    const xs = [-0.4, -0.2, 0, 0.2, 0.4];
+    const xs = [-0.4, -0.2, 0, 0.2, 0.4];       // left / frame layouts (canvas-relative)
+    const topXs = [-2, -1, 0, 1, 2];            // top layout: one column apart, centred on the viewport
     const layouts = {
-      top:  xs.map(f => [f * baseW, -(halfH + gap + figH * 0.5)]),
+      top:  topXs.map(f => [f * colW, -(halfH + gap + figH * 0.5)]),
       left: xs.map(f => [-(halfW + gap + figW * 0.5), f * baseH]),
       frame: [
         [-0.3 * baseW, -(halfH + gap)], [0, -(halfH + gap)], [0.3 * baseW, -(halfH + gap)],
@@ -233,12 +310,16 @@
     el.closeCtrl.hidden = !expanded;
     el.scrollHint.hidden = !(show !== null && !expanded);
 
-    // ---- narration bubble ----
+    // ---- narration bubble (placeholder copy, retractable) ----
     const narration = show == null ? HOME_NARRATION : narrations[show];
     const bubbleColor = show == null ? 'rgba(44,85,99,0.9)' : accent;
-    el.bubble.textContent = narration;
+    el.bubbleText.textContent = narration;
     el.bubble.style.color = bubbleColor;
     el.bubble.style.borderColor = bubbleColor;
+    el.bubbleHandle.style.color = bubbleColor;
+    el.bubbleHandle.style.borderColor = bubbleColor;
+    el.bubble.hidden = !state.bubbleOpen;
+    el.bubbleHandle.hidden = state.bubbleOpen;
 
     // ---- swatch tray / toggle ----
     el.swatchTray.hidden = !state.showSwatches;
@@ -266,9 +347,18 @@
   el.scrollHint.addEventListener('click', () => {
     if (state.active != null && !state.expanded) setState({ expanded: true });
   });
+  // narration box: click to retract, click the handle to bring it back
+  el.bubble.addEventListener('click', () => setState({ bubbleOpen: false }));
+  el.bubbleHandle.addEventListener('click', () => setState({ bubbleOpen: true }));
+
   el.swatchToggle.addEventListener('click', () => setState({ showSwatches: true }));
   el.swatches.forEach((sw) => {
-    sw.addEventListener('click', () => setState({ bgTone: sw.dataset.tone }));
+    sw.addEventListener('click', () => {
+      const activeTone = state.bgTone ?? config.bgTone ?? 'glacier';
+      // clicking the already-selected colour retracts the tray; any other switches
+      if (sw.dataset.tone === activeTone) setState({ showSwatches: false });
+      else setState({ bgTone: sw.dataset.tone });
+    });
   });
 
   // ============================================================ conversion actions
